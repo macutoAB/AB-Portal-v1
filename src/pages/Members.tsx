@@ -30,10 +30,21 @@ export const Members: React.FC = () => {
   const filteredMembers = useMemo(() => {
     let result = members.filter(m => {
       const isCorrectGender = activeTab === 'frat' ? m.gender === Gender.MALE : m.gender === Gender.FEMALE;
+      
+      const term = searchTerm.toLowerCase();
+      
+      // Safety check: Ensure fields exist before calling toLowerCase() to prevent crashes on null values
+      const lastName = (m.lastName || '').toLowerCase();
+      const firstName = (m.firstName || '').toLowerCase();
+      const batchName = (m.batchName || '').toLowerCase();
+      const batchYear = (m.batchYear || '').toString();
+
       const matchesSearch = 
-        m.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.batchName.toLowerCase().includes(searchTerm.toLowerCase());
+        lastName.includes(term) ||
+        firstName.includes(term) ||
+        batchName.includes(term) ||
+        batchYear.includes(term);
+
       return isCorrectGender && matchesSearch;
     });
 
@@ -49,8 +60,10 @@ export const Members: React.FC = () => {
   const groupedByBatch = useMemo(() => {
     const groups: Record<string, Member[]> = {};
     filteredMembers.forEach(m => {
-      if (!groups[m.batchYear]) groups[m.batchYear] = [];
-      groups[m.batchYear].push(m);
+      // Handle cases where batchYear might be missing
+      const year = m.batchYear || 'Unknown';
+      if (!groups[year]) groups[year] = [];
+      groups[year].push(m);
     });
     // Sort keys (years) Ascending (Oldest first)
     return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])); 
