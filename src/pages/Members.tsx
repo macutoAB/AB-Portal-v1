@@ -25,7 +25,7 @@ export const Members: React.FC = () => {
 
   const isAdmin = user?.role === UserRole.ADMIN;
 
-  // Filtering Logic
+  // Filtering & Sorting Logic
   const filteredMembers = useMemo(() => {
     let result = members.filter(m => {
       const isCorrectGender = activeTab === 'frat' ? m.gender === Gender.MALE : m.gender === Gender.FEMALE;
@@ -35,7 +35,13 @@ export const Members: React.FC = () => {
         m.batchName.toLowerCase().includes(searchTerm.toLowerCase());
       return isCorrectGender && matchesSearch;
     });
-    return result;
+
+    // Sort by Batch Year Ascending (Oldest first)
+    return result.sort((a, b) => {
+      const yearA = parseInt(a.batchYear) || 0;
+      const yearB = parseInt(b.batchYear) || 0;
+      return yearA - yearB;
+    });
   }, [members, activeTab, searchTerm]);
 
   // Group by Batch for Batch View
@@ -45,7 +51,8 @@ export const Members: React.FC = () => {
       if (!groups[m.batchYear]) groups[m.batchYear] = [];
       groups[m.batchYear].push(m);
     });
-    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0])); // Descending year
+    // Sort keys (years) Ascending (Oldest first)
+    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])); 
   }, [filteredMembers]);
 
   const handleOpenModal = (member?: Member) => {

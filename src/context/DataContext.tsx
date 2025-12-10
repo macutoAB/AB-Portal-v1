@@ -79,10 +79,10 @@ export const DataProvider = ({ children }: PropsWithChildren) => {
       const nameConfig = data.find(d => d.id === 'config_app_name');
       const logoConfig = data.find(d => d.id === 'config_app_logo');
       
-      setAppSettings(prev => ({
+      setAppSettings({
         chapterName: nameConfig?.content || 'ALPHA BETA',
         logoUrl: logoConfig?.content || ''
-      }));
+      });
     }
   };
 
