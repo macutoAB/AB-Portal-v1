@@ -166,8 +166,15 @@ export const Members: React.FC = () => {
                       {m.lastName}, {m.firstName} {m.middleName}
                     </td>
                     <td className="p-4">
-                      <span className="block text-slate-900">{m.batchYear}</span>
-                      <span className="text-xs text-slate-500">{m.batchName}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-900 font-medium">{m.batchYear}</span>
+                        {m.semester && m.semester !== Semester.NA && (
+                          <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-100 font-medium" title="Semester">
+                            {m.semester}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-500 block">{m.batchName}</span>
                     </td>
                     <td className="p-4 text-slate-600 font-mono">{m.idNumber}</td>
                     <td className="p-4 text-slate-600">{m.school}</td>
@@ -200,7 +207,14 @@ export const Members: React.FC = () => {
                  {batchMembers.map(m => (
                    <div key={m.id} className="p-3 border rounded-md hover:border-blue-300 transition-colors bg-slate-50">
                      <p className="font-semibold text-slate-900">{m.lastName}, {m.firstName}</p>
-                     <p className="text-xs text-slate-500">{m.batchName}</p>
+                     <div className="flex items-center gap-2 mt-0.5">
+                       <p className="text-xs text-slate-500">{m.batchName}</p>
+                       {m.semester && m.semester !== Semester.NA && (
+                         <span className="text-[10px] px-1 bg-slate-100 text-slate-600 rounded border border-slate-200">
+                           {m.semester}
+                         </span>
+                       )}
+                     </div>
                      <p className="text-xs text-slate-400 mt-1">{m.idNumber}</p>
                      {isAdmin && (
                        <div className="mt-2 flex gap-2">
