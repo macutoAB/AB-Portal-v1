@@ -15,6 +15,7 @@ export const Members: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'frat' | 'sor'>('frat'); // Frat = Male, Sor = Female
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBatch, setFilterBatch] = useState<string>('All'); // New state for Batch Filter
+  const [sortBy, setSortBy] = useState<'batch_asc' | 'batch_desc' | 'alpha'>('batch_asc'); // Sorting State
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,13 +69,26 @@ export const Members: React.FC = () => {
       return isCorrectGender && matchesBatchFilter && matchesSearch;
     });
 
-    // Sort by Batch Year Ascending (Oldest first)
+    // Sort Logic
     return result.sort((a, b) => {
-      const yearA = parseInt(a.batchYear) || 0;
-      const yearB = parseInt(b.batchYear) || 0;
-      return yearA - yearB;
+      if (sortBy === 'alpha') {
+        const nameA = (a.lastName || '').toLowerCase() + (a.firstName || '').toLowerCase();
+        const nameB = (b.lastName || '').toLowerCase() + (b.firstName || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      } else {
+        const yearA = parseInt(a.batchYear) || 0;
+        const yearB = parseInt(b.batchYear) || 0;
+        
+        if (yearA !== yearB) {
+          return sortBy === 'batch_asc' ? yearA - yearB : yearB - yearA;
+        }
+        // Secondary sort by name if years are equal
+        const nameA = (a.lastName || '').toLowerCase();
+        const nameB = (b.lastName || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      }
     });
-  }, [members, activeTab, searchTerm, filterBatch]);
+  }, [members, activeTab, searchTerm, filterBatch, sortBy]);
 
   // Group by Batch for Batch View
   const groupedByBatch = useMemo(() => {
@@ -85,9 +99,13 @@ export const Members: React.FC = () => {
       if (!groups[year]) groups[year] = [];
       groups[year].push(m);
     });
-    // Sort keys (years) Ascending (Oldest first)
-    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])); 
-  }, [filteredMembers]);
+    // Sort keys (years) based on selected sort order (Ascending or Descending)
+    // If alpha is selected, we still default batch view grouping to numeric year order (usually descending for display)
+    return Object.entries(groups).sort((a, b) => {
+      if (sortBy === 'batch_asc') return a[0].localeCompare(b[0]);
+      return b[0].localeCompare(a[0]); // Default to newest first for other views
+    }); 
+  }, [filteredMembers, sortBy]);
 
   const handleOpenModal = (member?: Member) => {
     if (member) {
@@ -132,7 +150,7 @@ export const Members: React.FC = () => {
       </div>
 
       {/* Tabs & Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100 flex flex-col lg:flex-row gap-4 justify-between items-center">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100 flex flex-col xl:flex-row gap-4 justify-between items-center">
         <div className="flex space-x-2 bg-slate-100 p-1 rounded-md">
           <button 
             className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'frat' ? 'bg-white shadow-sm text-blue-800' : 'text-slate-500 hover:text-slate-700'}`}
@@ -148,7 +166,20 @@ export const Members: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center space-y-3 md:space-y-0 md:space-x-4 w-full lg:w-auto">
+        <div className="flex flex-col md:flex-row items-center space-y-3 md:space-y-0 md:space-x-4 w-full xl:w-auto">
+          {/* Sort Dropdown */}
+          <div className="w-full md:w-40">
+            <select
+              className="w-full h-10 px-3 py-2 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-800 text-sm bg-white cursor-pointer"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+            >
+              <option value="batch_asc">Batch (Oldest)</option>
+              <option value="batch_desc">Batch (Newest)</option>
+              <option value="alpha">Name (A-Z)</option>
+            </select>
+          </div>
+
           {/* Batch Filter Dropdown */}
           <div className="w-full md:w-40">
             <select
