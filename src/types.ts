@@ -12,7 +12,7 @@ export enum Gender {
 export enum Semester {
   A = 'A',
   B = 'B',
-  UNKNOWN = 'Unknown',
+  NA = 'N/A',
 }
 
 export interface User {

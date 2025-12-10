@@ -281,7 +281,7 @@ export const Members: React.FC = () => {
               options={[
                 {label: 'A', value: Semester.A}, 
                 {label: 'B', value: Semester.B},
-                {label: 'Unknown', value: Semester.UNKNOWN}
+                {label: 'N/A', value: Semester.NA}
               ]}
               value={formData.semester}
               onChange={e => setFormData({...formData, semester: e.target.value as Semester})}
