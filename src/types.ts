@@ -56,6 +56,7 @@ export interface Affiliate {
   lastName: string;
   firstName: string;
   middleName: string;
+  gender: Gender; // Added gender field
   batchYear: string;
   idNumber: string;
   chapter: string;

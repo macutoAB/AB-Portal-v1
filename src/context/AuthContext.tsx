@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   // Helper to fetch profile data given a user ID - NOW WITH TIMEOUT PROTECTION
   const getProfileData = async (userId: string, email: string): Promise<User | null> => {
     try {
-      const { data, error } = await fetchWithTimeout(
+      const { data, error } = await fetchWithTimeout<any>(
         supabase
           .from('profiles')
           .select('*')
@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     const initializeAuth = async () => {
       try {
         // 1. Get Session with strict timeout
-        const { data: sessionData, error: sessionError } = await fetchWithTimeout(
+        const { data: sessionData, error: sessionError } = await fetchWithTimeout<any>(
           supabase.auth.getSession(),
           3000,
           'Session check timed out'

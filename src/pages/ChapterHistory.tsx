@@ -89,7 +89,7 @@ export const ChapterHistory: React.FC = () => {
                     </div>
                     
                     <h3 className={`text-xl font-bold ${textColor} mb-2`}>{event.title}</h3>
-                    <p className="text-slate-600 leading-relaxed text-sm">
+                    <p className="text-slate-600 leading-relaxed text-sm text-justify">
                       {event.description}
                     </p>
                     

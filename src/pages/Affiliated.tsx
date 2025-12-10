@@ -1,20 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { UserRole } from '../types';
+import { UserRole, Gender } from '../types';
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
+import { Input, Select } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Edit2, Trash2, Plus, Network } from 'lucide-react';
 
 export const Affiliated: React.FC = () => {
   const { affiliates, addAffiliate, updateAffiliate, deleteAffiliate } = useData();
   const { user } = useAuth();
+  
+  const [activeTab, setActiveTab] = useState<'frat' | 'sor'>('frat');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
-  const [formData, setFormData] = useState<any>({});
+  const [formData, setFormData] = useState<any>({
+    gender: Gender.MALE
+  });
 
   const isAdmin = user?.role === UserRole.ADMIN;
+
+  const filteredAffiliates = useMemo(() => {
+    return affiliates.filter(a => {
+      const targetGender = activeTab === 'frat' ? Gender.MALE : Gender.FEMALE;
+      // Handle legacy data where gender might be undefined by defaulting to Male if null
+      const itemGender = a.gender || Gender.MALE;
+      return itemGender === targetGender;
+    });
+  }, [affiliates, activeTab]);
 
   const handleOpenModal = (item?: any) => {
     if (item) {
@@ -22,7 +35,9 @@ export const Affiliated: React.FC = () => {
       setFormData(item);
     } else {
       setEditItem(null);
-      setFormData({});
+      setFormData({
+        gender: activeTab === 'frat' ? Gender.MALE : Gender.FEMALE,
+      });
     }
     setIsModalOpen(true);
   };
@@ -43,6 +58,22 @@ export const Affiliated: React.FC = () => {
         {isAdmin && <Button onClick={() => handleOpenModal()}><Plus size={18} className="mr-2"/> Add Affiliate</Button>}
       </div>
 
+      {/* Tabs */}
+      <div className="flex space-x-2 bg-slate-100 p-1 rounded-md w-fit">
+        <button 
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'frat' ? 'bg-white shadow-sm text-blue-800' : 'text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setActiveTab('frat')}
+        >
+          Fraternity
+        </button>
+        <button 
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'sor' ? 'bg-white shadow-sm text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setActiveTab('sor')}
+        >
+          Sorority
+        </button>
+      </div>
+
       <div className="bg-white rounded-lg shadow-sm border border-slate-100 overflow-hidden">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-500">
@@ -55,7 +86,7 @@ export const Affiliated: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {affiliates.map(a => (
+            {filteredAffiliates.map(a => (
               <tr key={a.id}>
                 <td className="p-4 font-medium">{a.lastName}, {a.firstName}</td>
                 <td className="p-4">{a.batchYear}</td>
@@ -69,7 +100,7 @@ export const Affiliated: React.FC = () => {
                 )}
               </tr>
             ))}
-            {affiliates.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-slate-400">No affiliates listed.</td></tr>}
+            {filteredAffiliates.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-slate-400">No affiliates found for this category.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -80,10 +111,21 @@ export const Affiliated: React.FC = () => {
             <Input label="Last Name" required value={formData.lastName || ''} onChange={e => setFormData({...formData, lastName: e.target.value})} />
             <Input label="First Name" required value={formData.firstName || ''} onChange={e => setFormData({...formData, firstName: e.target.value})} />
           </div>
-          <Input label="Batch Year" required value={formData.batchYear || ''} onChange={e => setFormData({...formData, batchYear: e.target.value})} />
+          
+          <div className="grid grid-cols-2 gap-4">
+             <Input label="Batch Year" required value={formData.batchYear || ''} onChange={e => setFormData({...formData, batchYear: e.target.value})} />
+             <Select 
+              label="Gender" 
+              options={[{label: 'Male', value: Gender.MALE}, {label: 'Female', value: Gender.FEMALE}]}
+              value={formData.gender}
+              onChange={e => setFormData({...formData, gender: e.target.value as Gender})}
+            />
+          </div>
+
           <Input label="School" value={formData.school || ''} onChange={e => setFormData({...formData, school: e.target.value})} />
           <Input label="Origin Chapter" required value={formData.chapter || ''} onChange={e => setFormData({...formData, chapter: e.target.value})} />
           <Input label="ID Number" value={formData.idNumber || ''} onChange={e => setFormData({...formData, idNumber: e.target.value})} />
+          
           <div className="flex justify-end pt-4"><Button type="submit">Save</Button></div>
         </form>
       </Modal>

@@ -103,6 +103,7 @@ export const MOCK_AFFILIATES: Affiliate[] = [
     lastName: 'Lim',
     firstName: 'Kevin',
     middleName: 'L.',
+    gender: Gender.MALE,
     batchYear: '2020',
     idNumber: '2020-77777',
     chapter: 'Gamma Delta',
