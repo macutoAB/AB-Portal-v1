@@ -94,6 +94,12 @@ export interface TimelineEvent {
   dateCreated: string;
 }
 
+// New Interface for App Configuration
+export interface AppSettings {
+  chapterName: string;
+  logoUrl: string;
+}
+
 // Helper for charts
 export interface ChartData {
   name: string;

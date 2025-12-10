@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, PropsWithChildren } from 'react';
-import { Member, Organizer, Affiliate, GrandChancellor, User, UserRole, ContentPage, TimelineEvent } from '../types';
+import { Member, Organizer, Affiliate, GrandChancellor, User, UserRole, ContentPage, TimelineEvent, AppSettings } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase } from '../supabaseClient';
 
@@ -11,6 +11,7 @@ interface DataContextType {
   users: User[];
   contentPages: ContentPage[];
   timelineEvents: TimelineEvent[];
+  appSettings: AppSettings;
   
   addMember: (data: Omit<Member, 'id' | 'dateCreated' | 'dateUpdated'>) => Promise<void>;
   updateMember: (id: string, data: Partial<Member>) => Promise<void>;
@@ -36,6 +37,8 @@ interface DataContextType {
 
   addTimelineEvent: (data: Omit<TimelineEvent, 'id' | 'dateCreated'>) => Promise<void>;
   deleteTimelineEvent: (id: string) => Promise<void>;
+
+  updateAppSettings: (settings: Partial<AppSettings>) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -50,13 +53,38 @@ export const DataProvider = ({ children }: PropsWithChildren) => {
   const [users, setUsers] = useState<User[]>([]);
   const [contentPages, setContentPages] = useState<ContentPage[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  
+  // Default Settings
+  const [appSettings, setAppSettings] = useState<AppSettings>({
+    chapterName: 'ALPHA BETA',
+    logoUrl: '' // Empty string means use default icon
+  });
 
   // Fetch data on mount or login
   useEffect(() => {
+    // We fetch settings even if not logged in (for Login page)
+    fetchSettings();
+
     if (currentUser) {
       fetchAllData();
     }
   }, [currentUser]);
+
+  const fetchSettings = async () => {
+    // We reuse 'contentPages' table for config to avoid new tables
+    // IDs: 'config_app_name', 'config_app_logo'
+    const { data } = await supabase.from('contentPages').select('*').in('id', ['config_app_name', 'config_app_logo']);
+    
+    if (data) {
+      const nameConfig = data.find(d => d.id === 'config_app_name');
+      const logoConfig = data.find(d => d.id === 'config_app_logo');
+      
+      setAppSettings(prev => ({
+        chapterName: nameConfig?.content || 'ALPHA BETA',
+        logoUrl: logoConfig?.content || ''
+      }));
+    }
+  };
 
   const fetchAllData = async () => {
     const { data: membersData } = await supabase.from('members').select('*');
@@ -73,7 +101,6 @@ export const DataProvider = ({ children }: PropsWithChildren) => {
 
     // Only admins can see user list
     if (currentUser?.role === UserRole.ADMIN) {
-      // We join auth.users via profiles table
       const { data: profilesData } = await supabase.from('profiles').select('*');
       if (profilesData) {
         const formattedUsers: User[] = profilesData.map(p => ({
@@ -221,23 +248,9 @@ export const DataProvider = ({ children }: PropsWithChildren) => {
     setTimelineEvents(prev => prev.filter(t => t.id !== id));
   };
 
-  // User Management
-  // Note: Creating a user via client SDK only creates in auth.users if "Enable Signups" is on.
-  // It won't automatically create a profile entry unless we use a Database Trigger (recommended) 
-  // or manually insert into profiles here.
   const addUser = async (_data: any) => {
     checkPermission();
-    // 1. Create Auth User (Admin only feature usually requires Service Role key on backend, 
-    // but client SDK allow signUp. However, signUp logs you in as that user immediately).
-    // WORKAROUND: For this portal, we will just insert into 'profiles' and assume the user signs up themselves,
-    // OR (Better for this demo) we assume you create the Auth User in Supabase Dashboard, 
-    // and this function just creates the Profile linkage.
     alert("Please create the user in Supabase Auth Dashboard first, then add their details here matching the email.");
-    
-    // Attempting to create profile record
-    // We cannot know the UUID until they sign up. 
-    // This part is complex without a backend function (Edge Function).
-    // For now, we will just throw an alert guiding the admin.
     window.open('https://supabase.com/dashboard/project/_/auth/users', '_blank');
   };
 
@@ -254,22 +267,36 @@ export const DataProvider = ({ children }: PropsWithChildren) => {
       alert("Cannot delete self");
       return;
     }
-    // Only deletes profile. Auth user remains unless deleted from Dashboard.
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) throw error;
     setUsers(prev => prev.filter(u => u.id !== id));
   };
 
+  const updateAppSettings = async (settings: Partial<AppSettings>) => {
+    checkPermission();
+    
+    if (settings.chapterName !== undefined) {
+      await updatePageContent('config_app_name', settings.chapterName);
+      setAppSettings(prev => ({ ...prev, chapterName: settings.chapterName! }));
+    }
+    
+    if (settings.logoUrl !== undefined) {
+      await updatePageContent('config_app_logo', settings.logoUrl);
+      setAppSettings(prev => ({ ...prev, logoUrl: settings.logoUrl! }));
+    }
+  };
+
   return (
     <DataContext.Provider value={{
-      members, organizers, affiliates, grandChancellors, users, contentPages, timelineEvents,
+      members, organizers, affiliates, grandChancellors, users, contentPages, timelineEvents, appSettings,
       addMember, updateMember, deleteMember,
       addOrganizer, updateOrganizer, deleteOrganizer,
       addAffiliate, updateAffiliate, deleteAffiliate,
       addChancellor, updateChancellor, deleteChancellor,
       addUser, updateUser, deleteUser,
       updatePageContent,
-      addTimelineEvent, deleteTimelineEvent
+      addTimelineEvent, deleteTimelineEvent,
+      updateAppSettings
     }}>
       {children}
     </DataContext.Provider>

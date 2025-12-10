@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Lock, ShieldCheck } from 'lucide-react';
@@ -13,6 +14,7 @@ export const Login: React.FC = () => {
   
   // Get auth state
   const { login, isAuthenticated, isLoading } = useAuth();
+  const { appSettings } = useData();
   const navigate = useNavigate();
 
   // 1. Auto-redirect if already logged in
@@ -38,7 +40,6 @@ export const Login: React.FC = () => {
   };
 
   // If the global auth is loading, just show a simple spinner or blank
-  // to prevent flickering the login form before redirect
   if (isLoading) {
      return (
        <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -55,10 +56,14 @@ export const Login: React.FC = () => {
            <div className="absolute top-0 left-0 w-32 h-32 bg-white opacity-5 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
            <div className="absolute bottom-0 right-0 w-24 h-24 bg-amber-500 opacity-10 rounded-full translate-x-1/3 translate-y-1/3"></div>
 
-           <div className="relative z-10 inline-flex items-center justify-center w-20 h-20 rounded-full bg-white mb-4 shadow-lg">
-             <ShieldCheck size={40} className="text-blue-900" />
+           <div className="relative z-10 inline-flex items-center justify-center w-24 h-24 rounded-full bg-white mb-4 shadow-lg overflow-hidden">
+             {appSettings.logoUrl ? (
+               <img src={appSettings.logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+             ) : (
+               <ShieldCheck size={40} className="text-blue-900" />
+             )}
            </div>
-           <h1 className="relative z-10 text-3xl font-bold text-white tracking-wide">APO <span className="text-amber-400">ALPHA BETA</span></h1>
+           <h1 className="relative z-10 text-3xl font-bold text-white tracking-wide">APO <span className="text-amber-400">{appSettings.chapterName}</span></h1>
            <p className="relative z-10 text-blue-200 mt-2 text-sm">Chapter Management Portal</p>
         </div>
         

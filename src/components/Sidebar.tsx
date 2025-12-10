@@ -10,9 +10,11 @@ import {
   X,
   Shield,
   History,
-  Info
+  Info,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { UserRole } from '../types';
 
 interface SidebarProps {
@@ -22,6 +24,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const { logout, user } = useAuth();
+  const { appSettings } = useData();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -42,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
   if (user?.role === UserRole.ADMIN) {
     navItems.push({ name: 'User Management', path: '/users', icon: <Shield size={20} /> });
+    navItems.push({ name: 'Settings', path: '/settings', icon: <Settings size={20} /> });
   }
 
   const sidebarClasses = `
@@ -61,7 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
       <div className={sidebarClasses}>
         <div className="flex items-center justify-between p-4 h-16 bg-blue-900 border-b border-blue-800">
-          <h1 className="text-xl font-bold tracking-wider text-amber-400">APO ALPHA BETA</h1>
+          <h1 className="text-lg font-bold tracking-wider text-amber-400 truncate">APO {appSettings.chapterName}</h1>
           <button onClick={() => setIsOpen(false)} className="md:hidden text-blue-300 hover:text-white">
             <X size={24} />
           </button>
@@ -69,11 +73,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
         <div className="p-4 border-b border-blue-900/50 bg-blue-900/20">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-lg font-bold text-blue-950 shadow-md">
-              {user?.name.charAt(0)}
+            <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-lg font-bold text-blue-950 shadow-md overflow-hidden">
+               {user?.name.charAt(0)}
             </div>
-            <div>
-              <p className="font-medium text-blue-50">{user?.name}</p>
+            <div className="overflow-hidden">
+              <p className="font-medium text-blue-50 truncate">{user?.name}</p>
               <p className="text-xs text-blue-300 uppercase tracking-wide">{user?.role}</p>
             </div>
           </div>

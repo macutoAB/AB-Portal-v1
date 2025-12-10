@@ -12,6 +12,7 @@ import { GrandChancellors } from './pages/GrandChancellors';
 import { UserManagement } from './pages/UserManagement';
 import { ChapterHistory } from './pages/ChapterHistory';
 import { AboutUs } from './pages/AboutUs';
+import { Settings } from './pages/Settings';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: PropsWithChildren) => {
@@ -45,6 +46,7 @@ const AppRoutes = () => {
         <Route path="history" element={<ChapterHistory />} />
         <Route path="about" element={<AboutUs />} />
         <Route path="users" element={<UserManagement />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
   );
