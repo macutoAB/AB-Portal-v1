@@ -84,7 +84,7 @@ export const Login: React.FC = () => {
           </form>
 
           <div className="mt-8 text-center text-xs text-slate-400 border-t pt-6 border-slate-100">
-             <p className="font-semibold text-slate-500 mb-2">All Rights Reserved 2026</p>
+             <p className="font-semibold text-slate-500 mb-2">All Rights Reserved 2025</p>
             <p><span className="font-mono bg-slate-100 px-1 rounded text-slate-600">Developed By:</span> <span className="font-mono bg-slate-100 px-1 rounded text-slate-600">TAMZ 0102-11-47809</span></p>
             <p className="mt-1"><span className="font-mono bg-slate-100 px-1 rounded text-slate-600">ALPHA PHI OMEGA</span> <span className="font-mono bg-slate-100 px-1 rounded text-slate-600"> Philippines Incorporated</span></p>
           </div>
