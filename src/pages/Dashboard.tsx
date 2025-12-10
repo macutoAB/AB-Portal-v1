@@ -48,8 +48,8 @@ export const Dashboard: React.FC = () => {
     let sororityCount = 0;
 
     members.forEach(m => {
-      // Check against Gender enum or string value
-      if (m.gender === Gender.MALE || m.gender === 'Male') {
+      // Check against Gender enum
+      if (m.gender === Gender.MALE) {
         fraternityCount++;
       } else {
         sororityCount++;
