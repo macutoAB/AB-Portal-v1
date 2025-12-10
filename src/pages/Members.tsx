@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +14,7 @@ export const Members: React.FC = () => {
   const [viewMode, setViewMode] = useState<'table' | 'batch'>('table');
   const [activeTab, setActiveTab] = useState<'frat' | 'sor'>('frat'); // Frat = Male, Sor = Female
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterBatch, setFilterBatch] = useState<string>('All'); // New state for Batch Filter
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,11 +26,31 @@ export const Members: React.FC = () => {
 
   const isAdmin = user?.role === UserRole.ADMIN;
 
+  // Extract unique batch years for the dropdown
+  const uniqueBatches = useMemo(() => {
+    const years = members
+      .map(m => m.batchYear)
+      .filter(y => y && y.trim() !== ''); // Filter out empty values
+    // Remove duplicates and sort descending (newest first)
+    return Array.from(new Set(years)).sort((a: string, b: string) => {
+      // Try to parse as int for correct numerical sorting, fallback to string compare
+      const intA = parseInt(a);
+      const intB = parseInt(b);
+      if (!isNaN(intA) && !isNaN(intB)) return intB - intA;
+      return b.localeCompare(a);
+    });
+  }, [members]);
+
   // Filtering & Sorting Logic
   const filteredMembers = useMemo(() => {
     let result = members.filter(m => {
+      // 1. Gender Filter
       const isCorrectGender = activeTab === 'frat' ? m.gender === Gender.MALE : m.gender === Gender.FEMALE;
       
+      // 2. Batch Dropdown Filter
+      const matchesBatchFilter = filterBatch === 'All' || m.batchYear === filterBatch;
+
+      // 3. Search Text Filter
       const term = searchTerm.toLowerCase();
       
       // Safety check: Ensure fields exist before calling toLowerCase() to prevent crashes on null values
@@ -45,7 +65,7 @@ export const Members: React.FC = () => {
         batchName.includes(term) ||
         batchYear.includes(term);
 
-      return isCorrectGender && matchesSearch;
+      return isCorrectGender && matchesBatchFilter && matchesSearch;
     });
 
     // Sort by Batch Year Ascending (Oldest first)
@@ -54,7 +74,7 @@ export const Members: React.FC = () => {
       const yearB = parseInt(b.batchYear) || 0;
       return yearA - yearB;
     });
-  }, [members, activeTab, searchTerm]);
+  }, [members, activeTab, searchTerm, filterBatch]);
 
   // Group by Batch for Batch View
   const groupedByBatch = useMemo(() => {
@@ -112,24 +132,38 @@ export const Members: React.FC = () => {
       </div>
 
       {/* Tabs & Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center">
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100 flex flex-col lg:flex-row gap-4 justify-between items-center">
         <div className="flex space-x-2 bg-slate-100 p-1 rounded-md">
           <button 
             className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'frat' ? 'bg-white shadow-sm text-blue-800' : 'text-slate-500 hover:text-slate-700'}`}
-            onClick={() => setActiveTab('frat')}
+            onClick={() => { setActiveTab('frat'); setFilterBatch('All'); }}
           >
             Fraternity
           </button>
           <button 
             className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'sor' ? 'bg-white shadow-sm text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
-            onClick={() => setActiveTab('sor')}
+            onClick={() => { setActiveTab('sor'); setFilterBatch('All'); }}
           >
             Sorority
           </button>
         </div>
 
-        <div className="flex items-center space-x-4 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
+        <div className="flex flex-col md:flex-row items-center space-y-3 md:space-y-0 md:space-x-4 w-full lg:w-auto">
+          {/* Batch Filter Dropdown */}
+          <div className="w-full md:w-40">
+            <select
+              className="w-full h-10 px-3 py-2 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-800 text-sm bg-white cursor-pointer"
+              value={filterBatch}
+              onChange={(e) => setFilterBatch(e.target.value)}
+            >
+              <option value="All">All Batches</option>
+              {uniqueBatches.map(year => (
+                <option key={year} value={year}>Batch {year}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="relative flex-1 w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
@@ -140,7 +174,7 @@ export const Members: React.FC = () => {
             />
           </div>
           
-          <div className="flex bg-slate-100 rounded-md p-1">
+          <div className="flex bg-slate-100 rounded-md p-1 self-start md:self-auto">
              <button
                onClick={() => setViewMode('table')}
                className={`px-3 py-1 text-sm rounded ${viewMode === 'table' ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}
@@ -239,6 +273,11 @@ export const Members: React.FC = () => {
                </div>
             </div>
           ))}
+          {groupedByBatch.length === 0 && (
+             <div className="p-12 text-center text-slate-500 bg-white rounded-lg border border-slate-100">
+                No batches found matching your filters.
+             </div>
+          )}
         </div>
       )}
 
