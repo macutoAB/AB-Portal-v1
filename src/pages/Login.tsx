@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
@@ -9,24 +9,43 @@ export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Get auth state
+  const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+
+  // 1. Auto-redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
+    setIsSubmitting(true);
 
     try {
       await login(email, password);
-      navigate('/');
-    } catch (err) {
-      setError('Invalid credentials. Please try again.');
-    } finally {
-      setIsLoading(false);
+      // Navigation happens automatically due to the useEffect above
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Invalid credentials. Please try again.');
+      setIsSubmitting(false);
     }
   };
+
+  // If the global auth is loading, just show a simple spinner or blank
+  // to prevent flickering the login form before redirect
+  if (isLoading) {
+     return (
+       <div className="min-h-screen flex items-center justify-center bg-slate-50">
+         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-800"></div>
+       </div>
+     );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
@@ -72,9 +91,9 @@ export const Login: React.FC = () => {
             <Button 
               type="submit" 
               className="w-full flex items-center justify-center space-x-2 bg-blue-800 hover:bg-blue-900"
-              disabled={isLoading}
+              disabled={isSubmitting}
             >
-              {isLoading ? 'Signing in...' : (
+              {isSubmitting ? 'Signing in...' : (
                 <>
                   <Lock size={16} />
                   <span>Sign In</span>

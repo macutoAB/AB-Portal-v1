@@ -7,12 +7,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Missing Supabase environment variables. Please check your .env file or Vercel settings.');
 }
 
-// Fallback to a dummy URL if missing, to prevent the SDK from hanging on empty string.
-// This allows the timeout in AuthContext to trigger correctly.
+// Fallback to avoid crashes if vars are missing (will fail gracefully in auth context)
 const validUrl = supabaseUrl || 'https://placeholder.supabase.co';
 const validKey = supabaseAnonKey || 'placeholder';
 
 export const supabase = createClient(
   validUrl,
-  validKey
+  validKey,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
 );

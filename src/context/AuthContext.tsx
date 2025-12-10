@@ -17,8 +17,8 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch user profile from 'profiles' table using the Auth ID
-  const fetchProfile = async (userId: string, email: string) => {
+  // Helper to fetch profile data given a user ID
+  const getProfileData = async (userId: string, email: string): Promise<User | null> => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       .single();
 
     if (error || !data) {
-      console.error('Error fetching profile:', error);
+      console.warn('Error fetching profile or profile not found:', error);
       return null;
     }
 
@@ -34,60 +34,95 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       throw new Error('Account is inactive. Please contact the administrator.');
     }
 
-    const userData: User = {
+    return {
       id: data.id,
       name: data.name,
       email: email,
       role: data.role as UserRole,
       status: data.status,
     };
-    
-    setUser(userData);
-    setIsAuthenticated(true);
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const initializeAuth = async () => {
       try {
-        // Create a timeout promise to prevent hanging indefinitely
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth check timed out')), 3000)
+        // Define the full authentication check sequence
+        const performAuthCheck = async () => {
+          // 1. Get Session
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) throw sessionError;
+
+          // 2. If Session exists, Fetch Profile
+          if (session?.user) {
+            const userData = await getProfileData(session.user.id, session.user.email!);
+            if (userData) {
+              return userData;
+            }
+          }
+          return null;
+        };
+
+        // Define a strict timeout promise (4 seconds)
+        const timeoutPromise = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('Auth check timed out')), 4000)
         );
 
-        // Race Supabase connection against the timeout
-        // This ensures the app loads even if Supabase keys are missing or network is slow
-        const sessionResult = await Promise.race([
-          supabase.auth.getSession(),
+        // Race the Auth Check against the Timeout
+        // This ensures the spinner ALWAYS disappears after 4 seconds max
+        const resultUser = await Promise.race([
+          performAuthCheck(),
           timeoutPromise
-        ]) as any;
+        ]);
 
-        const session = sessionResult.data?.session;
-        
-        if (session?.user) {
-          await fetchProfile(session.user.id, session.user.email!);
+        if (mounted && resultUser) {
+          setUser(resultUser);
+          setIsAuthenticated(true);
         }
+
       } catch (error) {
-        console.warn("Auth initialization skipped (timeout or error):", error);
-        // We act as if the user is logged out so the app remains usable
-        await supabase.auth.signOut();
+        console.warn("Auth initialization finished with specific state:", error);
+        // We do NOT sign out here to avoid clearing a valid (but slow) local session.
+        // The UI will just show logged out, and if the network recovers, a reload will fix it.
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     initializeAuth();
 
-    // Listen for auth changes
+    // Listen for auth changes (Login, Logout, Auto-Refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
       if (event === 'SIGNED_IN' && session?.user) {
-        await fetchProfile(session.user.id, session.user.email!);
+        // When signing in, we might need to fetch the profile again if we don't have it
+        setIsLoading(true);
+        try {
+          const userData = await getProfileData(session.user.id, session.user.email!);
+          if (userData) {
+            setUser(userData);
+            setIsAuthenticated(true);
+          }
+        } catch (e) {
+          console.error("Profile fetch failed on change state", e);
+        } finally {
+          setIsLoading(false);
+        }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsAuthenticated(false);
+        setIsLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -97,8 +132,13 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     });
 
     if (error) throw error;
+    
     if (data.user) {
-      await fetchProfile(data.user.id, data.user.email!);
+      const userData = await getProfileData(data.user.id, data.user.email!);
+      if (userData) {
+        setUser(userData);
+        setIsAuthenticated(true);
+      }
     }
   };
 
