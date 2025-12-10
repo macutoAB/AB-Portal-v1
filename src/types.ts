@@ -1,3 +1,4 @@
+
 export enum UserRole {
   ADMIN = 'admin',
   GUEST = 'guest',
@@ -11,6 +12,7 @@ export enum Gender {
 export enum Semester {
   A = 'A',
   B = 'B',
+  UNKNOWN = 'Unknown',
 }
 
 export interface User {

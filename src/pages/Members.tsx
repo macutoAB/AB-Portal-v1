@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -277,7 +278,11 @@ export const Members: React.FC = () => {
             />
              <Select 
               label="Semester" 
-              options={[{label: 'A', value: Semester.A}, {label: 'B', value: Semester.B}]}
+              options={[
+                {label: 'A', value: Semester.A}, 
+                {label: 'B', value: Semester.B},
+                {label: 'Unknown', value: Semester.UNKNOWN}
+              ]}
               value={formData.semester}
               onChange={e => setFormData({...formData, semester: e.target.value as Semester})}
             />
