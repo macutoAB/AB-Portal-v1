@@ -12,35 +12,53 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to prevent any async operation from hanging indefinitely
+// Use PromiseLike to accept both Promises and thenables (like Supabase builders)
+const fetchWithTimeout = <T,>(promise: PromiseLike<T>, ms: number = 3000, errorMsg: string = 'Operation timed out'): Promise<T> => {
+  const timeout = new Promise<never>((_, reject) => 
+    setTimeout(() => reject(new Error(errorMsg)), ms)
+  );
+  return Promise.race([promise, timeout]);
+};
+
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Helper to fetch profile data given a user ID
+  // Helper to fetch profile data given a user ID - NOW WITH TIMEOUT PROTECTION
   const getProfileData = async (userId: string, email: string): Promise<User | null> => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    try {
+      const { data, error } = await fetchWithTimeout(
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single(),
+        4000, // 4 second strict timeout for DB
+        'Database connection timed out'
+      );
 
-    if (error || !data) {
-      console.warn('Error fetching profile or profile not found:', error);
+      if (error || !data) {
+        console.warn('Error fetching profile or profile not found:', error);
+        return null;
+      }
+
+      if (data.status !== 'active') {
+        throw new Error('Account is inactive. Please contact the administrator.');
+      }
+
+      return {
+        id: data.id,
+        name: data.name,
+        email: email,
+        role: data.role as UserRole,
+        status: data.status,
+      };
+    } catch (err) {
+      console.error("Profile fetch failed:", err);
       return null;
     }
-
-    if (data.status !== 'active') {
-      throw new Error('Account is inactive. Please contact the administrator.');
-    }
-
-    return {
-      id: data.id,
-      name: data.name,
-      email: email,
-      role: data.role as UserRole,
-      status: data.status,
-    };
   };
 
   useEffect(() => {
@@ -48,43 +66,25 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
     const initializeAuth = async () => {
       try {
-        // Define the full authentication check sequence
-        const performAuthCheck = async () => {
-          // 1. Get Session
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          if (sessionError) throw sessionError;
-
-          // 2. If Session exists, Fetch Profile
-          if (session?.user) {
-            const userData = await getProfileData(session.user.id, session.user.email!);
-            if (userData) {
-              return userData;
-            }
-          }
-          return null;
-        };
-
-        // Define a strict timeout promise (4 seconds)
-        const timeoutPromise = new Promise<null>((_, reject) => 
-          setTimeout(() => reject(new Error('Auth check timed out')), 4000)
+        // 1. Get Session with strict timeout
+        const { data: sessionData, error: sessionError } = await fetchWithTimeout(
+          supabase.auth.getSession(),
+          3000,
+          'Session check timed out'
         );
 
-        // Race the Auth Check against the Timeout
-        // This ensures the spinner ALWAYS disappears after 4 seconds max
-        const resultUser = await Promise.race([
-          performAuthCheck(),
-          timeoutPromise
-        ]);
+        if (sessionError) throw sessionError;
 
-        if (mounted && resultUser) {
-          setUser(resultUser);
-          setIsAuthenticated(true);
+        // 2. If Session exists, Fetch Profile
+        if (sessionData.session?.user) {
+          const userData = await getProfileData(sessionData.session.user.id, sessionData.session.user.email!);
+          if (mounted && userData) {
+            setUser(userData);
+            setIsAuthenticated(true);
+          }
         }
-
       } catch (error) {
-        console.warn("Auth initialization finished with specific state:", error);
-        // We do NOT sign out here to avoid clearing a valid (but slow) local session.
-        // The UI will just show logged out, and if the network recovers, a reload will fix it.
+        console.warn("Auth initialization finished with error:", error);
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -99,18 +99,19 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       if (!mounted) return;
 
       if (event === 'SIGNED_IN' && session?.user) {
-        // When signing in, we might need to fetch the profile again if we don't have it
-        setIsLoading(true);
+        // Only set loading if we don't already have a user (prevents flashing on page focus/refresh)
+        if (!user) setIsLoading(true);
+        
         try {
           const userData = await getProfileData(session.user.id, session.user.email!);
-          if (userData) {
+          if (mounted && userData) {
             setUser(userData);
             setIsAuthenticated(true);
           }
         } catch (e) {
           console.error("Profile fetch failed on change state", e);
         } finally {
-          setIsLoading(false);
+          if (mounted) setIsLoading(false);
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
@@ -123,7 +124,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Remove user dependency to prevent loop
 
   const login = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -143,7 +144,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Error signing out:", e);
+    }
     setUser(null);
     setIsAuthenticated(false);
   };
