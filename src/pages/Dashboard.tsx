@@ -5,6 +5,7 @@ import {
   PieChart, Pie, Cell 
 } from 'recharts';
 import { Users, Building, Award, Crown } from 'lucide-react';
+import { Gender } from '../types';
 
 const StatCard = ({ title, value, icon, bgClass, iconColorClass }: { title: string, value: number, icon: React.ReactNode, bgClass: string, iconColorClass: string }) => (
   <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center space-x-4">
@@ -41,20 +42,28 @@ export const Dashboard: React.FC = () => {
     }));
   }, [members]);
 
-  const membersBySchool = useMemo(() => {
-    const counts: Record<string, number> = {};
+  // Updated: Distribution by Gender (Fraternity/Sorority)
+  const membersByGender = useMemo(() => {
+    let fraternityCount = 0;
+    let sororityCount = 0;
+
     members.forEach(m => {
-      const school = m.school || 'Unspecified';
-      counts[school] = (counts[school] || 0) + 1;
+      // Check against Gender enum or string value
+      if (m.gender === Gender.MALE || m.gender === 'Male') {
+        fraternityCount++;
+      } else {
+        sororityCount++;
+      }
     });
-    return Object.keys(counts).map(school => ({
-      name: school,
-      value: counts[school]
-    }));
+
+    return [
+      { name: 'Fraternity', value: fraternityCount },
+      { name: 'Sorority', value: sororityCount }
+    ];
   }, [members]);
 
-  // Blue and Gold Color Palette
-  const COLORS = ['#1e40af', '#f59e0b', '#1e3a8a', '#fbbf24', '#60a5fa', '#d97706'];
+  // Blue (Fraternity) and Gold (Sorority) Color Palette
+  const GENDER_COLORS = ['#1e40af', '#f59e0b']; // Blue-800, Amber-500
 
   return (
     <div className="space-y-6">
@@ -117,14 +126,14 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Pie Chart: Members per School */}
+        {/* Pie Chart: Fraternity / Sorority Distribution */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-semibold text-blue-900 mb-4">Members Distribution by School</h3>
+          <h3 className="text-lg font-semibold text-blue-900 mb-4">Fraternity / Sorority</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={membersBySchool}
+                  data={membersByGender}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -133,8 +142,8 @@ export const Dashboard: React.FC = () => {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {membersBySchool.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {membersByGender.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={GENDER_COLORS[index % GENDER_COLORS.length]} />
                   ))}
                 </Pie>
                 <RechartsTooltip />
