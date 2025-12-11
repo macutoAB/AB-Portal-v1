@@ -133,12 +133,6 @@ export const DataProvider = ({ children }: PropsWithChildren) => {
     checkPermission();
 
     // 1. DUPLICATE CHECK
-    // Check for ID Number (if provided) OR First + Last Name combination
-    let query = supabase.from('members').select('id, firstName, lastName, batchYear').or(`firstName.ilike.${data.firstName},idNumber.eq.${data.idNumber}`);
-    
-    // We fetch potential matches first because OR syntax with multiple fields can be tricky
-    // A simple approach: Check strictly by name first.
-    
     // Check 1: Name Match
     const { data: nameMatch } = await supabase
       .from('members')
