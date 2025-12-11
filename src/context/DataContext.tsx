@@ -132,7 +132,7 @@ export const DataProvider = ({ children }: PropsWithChildren) => {
   const addMember = async (data: any) => {
     checkPermission();
 
-    // 1. DUPLICATE CHECK
+    // 1. DUPLICATE CHECK (Strict Blocking)
     // Check 1: Name Match
     const { data: nameMatch } = await supabase
       .from('members')
@@ -141,10 +141,7 @@ export const DataProvider = ({ children }: PropsWithChildren) => {
       .ilike('lastName', data.lastName);
 
     if (nameMatch && nameMatch.length > 0) {
-      const confirmDup = window.confirm(
-        `Possible Duplicate: A member named "${data.firstName} ${data.lastName}" already exists in Batch ${nameMatch[0].batchYear}.\n\nDo you still want to add them?`
-      );
-      if (!confirmDup) return; // Cancel operation
+      throw new Error(`Duplicate Entry: A member named "${data.firstName} ${data.lastName}" already exists in Batch ${nameMatch[0].batchYear}. Action blocked.`);
     }
 
     // Check 2: ID Number Match (only if ID is provided and not empty)

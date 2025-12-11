@@ -20,6 +20,7 @@ export const Members: React.FC = () => {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<Member | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Partial<Member>>({
     gender: Gender.MALE,
     semester: Semester.A
@@ -122,19 +123,26 @@ export const Members: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editItem) {
-      updateMember(editItem.id, formData);
-    } else {
-      addMember(formData as any);
+    setIsSubmitting(true);
+    try {
+      if (editItem) {
+        await updateMember(editItem.id, formData);
+      } else {
+        await addMember(formData as any);
+      }
+      setIsModalOpen(false);
+    } catch (error: any) {
+      alert(error.message); // Show the duplicate error to the user
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this member?')) {
-      deleteMember(id);
+      await deleteMember(id);
     }
   };
 
@@ -392,8 +400,10 @@ export const Members: React.FC = () => {
           />
 
           <div className="flex justify-end space-x-3 mt-6">
-            <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="submit">{editItem ? 'Update' : 'Add'}</Button>
+            <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Processing...' : (editItem ? 'Update' : 'Add')}
+            </Button>
           </div>
         </form>
       </Modal>
