@@ -30,15 +30,25 @@ export const Dashboard: React.FC = () => {
     totalChancellors: grandChancellors.length
   };
 
-  // Chart Data Preparation
+  // Chart Data Preparation - Updated for Stacked Bar (Male/Female)
   const membersByBatch = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const groups: Record<string, { male: number; female: number }> = {};
+    
     members.forEach(m => {
-      counts[m.batchYear] = (counts[m.batchYear] || 0) + 1;
+      const year = m.batchYear || 'Unknown';
+      if (!groups[year]) groups[year] = { male: 0, female: 0 };
+      
+      if (m.gender === Gender.MALE) {
+        groups[year].male++;
+      } else {
+        groups[year].female++;
+      }
     });
-    return Object.keys(counts).sort().map(year => ({
+
+    return Object.keys(groups).sort().map(year => ({
       name: year,
-      members: counts[year]
+      Fraternity: groups[year].male,
+      Sorority: groups[year].female
     }));
   }, [members]);
 
@@ -107,7 +117,7 @@ export const Dashboard: React.FC = () => {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         
-        {/* Bar Chart: Members per Batch */}
+        {/* Bar Chart: Members per Batch (Stacked) */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
           <h3 className="text-lg font-semibold text-blue-900 mb-4">Members per Batch Year</h3>
           <div className="h-80">
@@ -120,7 +130,10 @@ export const Dashboard: React.FC = () => {
                   contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                   cursor={{ fill: '#eff6ff' }}
                 />
-                <Bar dataKey="members" fill="#1e40af" radius={[4, 4, 0, 0]} />
+                <Legend iconType="circle" />
+                {/* Stacked Bars */}
+                <Bar dataKey="Fraternity" stackId="a" fill="#1e40af" name="Fraternity" />
+                <Bar dataKey="Sorority" stackId="a" fill="#f59e0b" name="Sorority" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
