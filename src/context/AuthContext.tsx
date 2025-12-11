@@ -13,8 +13,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Helper to prevent any async operation from hanging indefinitely
-// Use PromiseLike to accept both Promises and thenables (like Supabase builders)
-const fetchWithTimeout = <T,>(promise: PromiseLike<T>, ms: number = 3000, errorMsg: string = 'Operation timed out'): Promise<T> => {
+const fetchWithTimeout = <T,>(promise: PromiseLike<T>, ms: number = 15000, errorMsg: string = 'Operation timed out'): Promise<T> => {
   const timeout = new Promise<never>((_, reject) => 
     setTimeout(() => reject(new Error(errorMsg)), ms)
   );
@@ -26,8 +25,8 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Helper to fetch profile data given a user ID - NOW WITH TIMEOUT PROTECTION
-  const getProfileData = async (userId: string, email: string): Promise<User | null> => {
+  // Helper to fetch profile data given a user ID - WITH RETRY LOGIC
+  const getProfileData = async (userId: string, email: string, retries = 3): Promise<User | null> => {
     try {
       const { data, error } = await fetchWithTimeout<any>(
         supabase
@@ -35,12 +34,18 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           .select('*')
           .eq('id', userId)
           .single(),
-        4000, // 4 second strict timeout for DB
+        5000, // 5 second timeout for DB profile fetch
         'Database connection timed out'
       );
 
       if (error || !data) {
-        console.warn('Error fetching profile or profile not found:', error);
+        console.warn('Error fetching profile:', error);
+        // Retry logic for network glitches
+        if (retries > 0) {
+           console.log(`Retrying profile fetch... (${retries} attempts left)`);
+           await new Promise(res => setTimeout(res, 1000)); // Wait 1s
+           return getProfileData(userId, email, retries - 1);
+        }
         return null;
       }
 
@@ -67,9 +72,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     const initializeAuth = async () => {
       try {
         // 1. Get Session with strict timeout
+        // Increased timeout to 10s to account for Supabase "Cold Start" on free tier
         const { data: sessionData, error: sessionError } = await fetchWithTimeout<any>(
           supabase.auth.getSession(),
-          3000,
+          10000, 
           'Session check timed out'
         );
 
@@ -81,10 +87,31 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           if (mounted && userData) {
             setUser(userData);
             setIsAuthenticated(true);
+          } else if (mounted && !userData) {
+             // Session exists but profile fetch failed (or user deleted from DB but not Auth)
+             // Clean up to prevent stuck state
+             console.warn("Session valid but profile missing. Clearing stale session.");
+             await supabase.auth.signOut();
+             localStorage.removeItem('apo_user');
+             localStorage.removeItem('sb-' + (import.meta as any).env.VITE_SUPABASE_URL?.split('.')[0] + '-auth-token'); 
+             setUser(null);
+             setIsAuthenticated(false);
           }
+        } else {
+            // No session from Supabase, but maybe LocalStorage has junk? Clear it.
+            if (localStorage.getItem('apo_user')) {
+                console.log("Clearing stale local storage data");
+                localStorage.removeItem('apo_user');
+            }
+            setUser(null);
+            setIsAuthenticated(false);
         }
       } catch (error) {
         console.warn("Auth initialization finished with error:", error);
+        // Nuclear option: If init fails, clear everything so the user can at least see the Login screen
+        localStorage.removeItem('apo_user');
+        setUser(null);
+        setIsAuthenticated(false);
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -99,7 +126,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       if (!mounted) return;
 
       if (event === 'SIGNED_IN' && session?.user) {
-        // Only set loading if we don't already have a user (prevents flashing on page focus/refresh)
+        // Only set loading if we don't already have a user
         if (!user) setIsLoading(true);
         
         try {
@@ -117,6 +144,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         setUser(null);
         setIsAuthenticated(false);
         setIsLoading(false);
+        localStorage.removeItem('apo_user');
       }
     });
 
@@ -124,7 +152,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Remove user dependency to prevent loop
+  }, []); 
 
   const login = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -139,6 +167,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       if (userData) {
         setUser(userData);
         setIsAuthenticated(true);
+      } else {
+          // If login succeeds but profile fetch fails, force logout
+          await supabase.auth.signOut();
+          throw new Error("Login successful, but user profile could not be loaded.");
       }
     }
   };
@@ -151,6 +183,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     }
     setUser(null);
     setIsAuthenticated(false);
+    localStorage.removeItem('apo_user');
   };
 
   return (
