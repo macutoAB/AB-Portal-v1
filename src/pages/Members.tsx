@@ -393,7 +393,7 @@ export const Members: React.FC = () => {
 
           <div className="flex justify-end space-x-3 mt-6">
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button type="submit">{editItem ? 'Update' : 'Create'}</Button>
+            <Button type="submit">{editItem ? 'Update' : 'Add'}</Button>
           </div>
         </form>
       </Modal>

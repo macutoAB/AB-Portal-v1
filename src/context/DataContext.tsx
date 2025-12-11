@@ -131,6 +131,41 @@ export const DataProvider = ({ children }: PropsWithChildren) => {
 
   const addMember = async (data: any) => {
     checkPermission();
+
+    // 1. DUPLICATE CHECK
+    // Check for ID Number (if provided) OR First + Last Name combination
+    let query = supabase.from('members').select('id, firstName, lastName, batchYear').or(`firstName.ilike.${data.firstName},idNumber.eq.${data.idNumber}`);
+    
+    // We fetch potential matches first because OR syntax with multiple fields can be tricky
+    // A simple approach: Check strictly by name first.
+    
+    // Check 1: Name Match
+    const { data: nameMatch } = await supabase
+      .from('members')
+      .select('id, batchYear')
+      .ilike('firstName', data.firstName)
+      .ilike('lastName', data.lastName);
+
+    if (nameMatch && nameMatch.length > 0) {
+      const confirmDup = window.confirm(
+        `Possible Duplicate: A member named "${data.firstName} ${data.lastName}" already exists in Batch ${nameMatch[0].batchYear}.\n\nDo you still want to add them?`
+      );
+      if (!confirmDup) return; // Cancel operation
+    }
+
+    // Check 2: ID Number Match (only if ID is provided and not empty)
+    if (data.idNumber && data.idNumber.trim() !== '') {
+      const { data: idMatch } = await supabase
+        .from('members')
+        .select('id, firstName, lastName')
+        .eq('idNumber', data.idNumber);
+      
+      if (idMatch && idMatch.length > 0) {
+        throw new Error(`Duplicate Error: The ID Number "${data.idNumber}" is already assigned to ${idMatch[0].firstName} ${idMatch[0].lastName}.`);
+      }
+    }
+
+    // 2. Insert if checks pass
     const { data: newRecord, error } = await supabase.from('members').insert(data).select().single();
     if (error) throw error;
     if (newRecord) setMembers(prev => [...prev, newRecord]);
